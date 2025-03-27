@@ -23,7 +23,7 @@ export default function CreateTestPage() {
   }, [searchParams]);
 
   const getQuestionCountByDifficulty = (difficulty: string) =>
-    questions.filter((q) => q.difficulty === difficulty).length;
+    questions.filter((q) => q.difficulty.toLowerCase() === difficulty.toLowerCase()).length;
 
   const handleSaveTest = async () => {
     if (!classId) {

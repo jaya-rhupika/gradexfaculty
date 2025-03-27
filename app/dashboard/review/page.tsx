@@ -1,64 +1,72 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function ReviewPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [selectedQuestions, setSelectedQuestions] = useState<{ text: string; answer: string }[]>([]);
+  const [questions, setQuestions] = useState<
+    { text: string; options: string[]; correctIndex: number; difficulty: string }[]
+  >([
+    { text: "What is React?", options: ["Library", "Framework", "Language", "Tool"], correctIndex: 0, difficulty: "Medium" },
+    { text: "What is Next.js?", options: ["Backend", "Frontend", "Fullstack", "Library"], correctIndex: 2, difficulty: "Medium" },
+  ]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const questionsFromUrl = searchParams.get("questions");
-    if (questionsFromUrl) {
-      try {
-        setSelectedQuestions(JSON.parse(decodeURIComponent(questionsFromUrl)));
-      } catch (error) {
-        console.error("Error parsing questions from URL:", error);
-      }
+  const handleConfirmTest = async () => {
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/tests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions }),
+      });
+
+      // Always go to create test page, even if API fails
+      router.push(`/dashboard/create-test?questions=${encodeURIComponent(JSON.stringify(questions))}`);
+    } catch (error) {
+      console.error("API Error:", error);
+      router.push(`/dashboard/create-test?questions=${encodeURIComponent(JSON.stringify(questions))}`);
+    } finally {
+      setLoading(false);
     }
-  }, [searchParams]);
-
-  const handleRemoveQuestion = (questionText: string) => {
-    setSelectedQuestions((prev) => prev.filter(q => q.text !== questionText));
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">📋 Review Selected Questions</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-black">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-3xl">
+        <h1 className="text-2xl font-bold mb-4 text-black">📋 Review Questions</h1>
 
-      {selectedQuestions.length > 0 ? (
         <ul className="space-y-4">
-          {selectedQuestions.map((question, index) => (
-            <li key={index} className="p-4 bg-gray-100 rounded-lg shadow-md flex justify-between items-center">
-              <span className="text-black">{question.text}</span>
-              <button
-                className="text-red-500 font-bold"
-                onClick={() => handleRemoveQuestion(question.text)}
-              >
-                ❌ Remove
-              </button>
-            </li>
-          ))}
+          {questions.length > 0 ? (
+            questions.map((q, index) => (
+              <li key={index} className="border p-4 rounded-lg shadow-md">
+                <p className="font-semibold text-black">{q.text}</p>
+                <p className="text-sm text-gray-500">Difficulty: {q.difficulty}</p>
+                <ul className="mt-2">
+                  {q.options.map((option, idx) => (
+                    <li key={idx} className={`ml-4 ${idx === q.correctIndex ? "text-green-600 font-bold" : "text-black"}`}>
+                      {option}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))
+          ) : (
+            <p className="text-red-500">No questions to review.</p>
+          )}
         </ul>
-      ) : (
-        <p className="text-gray-500">No questions selected.</p>
-      )}
 
-      <div className="mt-6 flex justify-center space-x-4">
-        <button
-          className="bg-gray-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-600 transition"
-          onClick={() => router.push(`/dashboard/question-bank?questions=${encodeURIComponent(JSON.stringify(selectedQuestions))}`)}
-        >
-          🔙 Back to Question Bank
-        </button>
-        <button
-  onClick={() => router.push(`/dashboard/create-test?questions=${encodeURIComponent(JSON.stringify(selectedQuestions))}`)}
-  className="bg-green-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition"
->
-  ➡️ Proceed to Create Test
-</button>
-
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={handleConfirmTest}
+            className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition"
+            disabled={loading}
+          >
+            {loading ? "Processing..." : "✅ Confirm & Create Test"}
+          </button>
+        </div>
       </div>
     </div>
   );
